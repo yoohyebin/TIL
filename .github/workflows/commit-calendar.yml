@@ -1,5 +1,4 @@
 name: Commit Calendar
-
 on:
   push:
     branches:
@@ -7,24 +6,26 @@ on:
       
 permissions:
   contents: write 
-
+  
 jobs:
   generate-calendar:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-
+        with:
+          fetch-depth: 0  # 전체 커밋 히스토리를 가져오기
+      
       - name: Generate commit calendar SVG
         run: |
-          git log --since="30 days ago" --pretty=format:'%ad' --date=short > commits.txt
+          git log --since="365 days ago" --pretty=format:'%ad' --date=short > commits.txt
+          cat commits.txt  # 디버깅 용도
           python3 .github/scripts/calendar.py
-
+          
       - name: Commit and push SVG
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add commit-calendar.svg
-
+          git add commit-calendar.svg README.md
           # 변경사항 없으면 커밋하지 않음
           if git diff --cached --quiet; then
             echo "No changes to commit"
