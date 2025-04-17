@@ -40,7 +40,7 @@ svg_start = f"""<svg width="{SVG_WIDTH}" height="{SVG_HEIGHT}" viewBox="0 0 {SVG
   <g transform="translate(20, 20)">
 """
 
-# 월 이름 추가
+# 월 이름 추가 
 months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 for i in range(12):
     month_date = datetime.date(2025, 1, 1) + datetime.timedelta(days=30*i)
