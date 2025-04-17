@@ -15,10 +15,13 @@ today_str = today.strftime("%Y-%m-%d")
 
 print(f"Today's date: {today_str}")
 
-# 1년치 날짜 생성 (오늘부터 역순으로)
+# 2025년 1월 1일부터 시작하는 날짜 생성
+start_date = datetime.date(2025, 1, 1)
+days_to_generate = (datetime.date(2025, 12, 31) - start_date).days + 1
+
 dates = []
-for i in range(365):
-    day = today - datetime.timedelta(days=364-i)
+for i in range(days_to_generate):
+    day = start_date + datetime.timedelta(days=i)
     dates.append(day.strftime("%Y-%m-%d"))
 
 # SVG 생성
@@ -40,16 +43,12 @@ svg_start = f"""<svg width="{SVG_WIDTH}" height="{SVG_HEIGHT}" viewBox="0 0 {SVG
 # 월 이름 추가
 months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 for i in range(12):
-    month_date = today.replace(day=1) - datetime.timedelta(days=30*11) + datetime.timedelta(days=30*i)
+    month_date = datetime.date(2025, 1, 1) + datetime.timedelta(days=30*i)
     month_idx = month_date.month - 1
     x = i * (CELL_SIZE + CELL_MARGIN) * 4.3 + 35  # 월 위치 조정
     svg_start += f'    <text x="{x}" y="-5" class="text">{months[month_idx]}</text>\n'
 
-# 요일 추가
-days = ["Mon", "Wed", "Fri"]
-for i, day in enumerate(days):
-    y = i * (CELL_SIZE + CELL_MARGIN) * 2 + 10
-    svg_start += f'    <text x="-10" y="{y}" class="text" text-anchor="end">{day}</text>\n'
+# 요일 표시 제거 (요청에 따라)
 
 svg_cells = ""
 commits_data = {}
@@ -71,7 +70,7 @@ except Exception as e:
 print(f"Today ({today_str}) in commits_data: {today_str in commits_data}")
 
 # 각 날짜에 대한 셀 생성
-for week_idx in range(52):  # 52주
+for week_idx in range(53):  # 53주 (2025년은 53주가 될 수 있음)
     for day_idx in range(7):  # 7일
         date_idx = week_idx * 7 + day_idx
         
