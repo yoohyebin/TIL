@@ -1,59 +1,134 @@
 import datetime
-from collections import defaultdict
+import os
+import re
 
 # 색상 정의
 COLOR_COMMIT = "#ffc0cb"  # 라이트 핑크
 COLOR_EMPTY = "#ebedf0"   # 회색
 
-# 날짜별 커밋 수 저장
-commit_days = set()
+# README.md 파일 경로
+README_PATH = "README.md"
+
+# 오늘 날짜 가져오기
+today = datetime.date.today()
+today_str = today.strftime("%Y-%m-%d")
+
+print(f"Today's date: {today_str}")
+
+# 1년치 날짜 생성 (오늘부터 역순으로)
+dates = []
+for i in range(365):
+    day = today - datetime.timedelta(days=364-i)
+    dates.append(day.strftime("%Y-%m-%d"))
+
+# SVG 생성
+SVG_WIDTH = 830
+SVG_HEIGHT = 128
+CELL_SIZE = 11
+CELL_MARGIN = 2
+
+svg_start = f"""<svg width="{SVG_WIDTH}" height="{SVG_HEIGHT}" viewBox="0 0 {SVG_WIDTH} {SVG_HEIGHT}"
+     xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .cell {{ stroke: #1b1f230a; stroke-width: 1px; }}
+    .cell:hover {{ stroke: #1b1f23; stroke-width: 1px; }}
+    .text {{ font: 10px sans-serif; fill: #767676; }}
+  </style>
+  <g transform="translate(20, 20)">
+"""
+
+# 월 이름 추가
+months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+for i in range(12):
+    month_date = today.replace(day=1) - datetime.timedelta(days=30*11) + datetime.timedelta(days=30*i)
+    month_idx = month_date.month - 1
+    x = i * (CELL_SIZE + CELL_MARGIN) * 4.3 + 35  # 월 위치 조정
+    svg_start += f'    <text x="{x}" y="-5" class="text">{months[month_idx]}</text>\n'
+
+# 요일 추가
+days = ["Mon", "Wed", "Fri"]
+for i, day in enumerate(days):
+    y = i * (CELL_SIZE + CELL_MARGIN) * 2 + 10
+    svg_start += f'    <text x="-10" y="{y}" class="text" text-anchor="end">{day}</text>\n'
+
+svg_cells = ""
+commits_data = {}
+
+# commits.txt 파일에서 커밋 데이터 읽기
 try:
-    with open('commits.txt') as f:
+    with open('commits.txt', 'r') as f:
         for line in f:
             date = line.strip()
-            if date:
-                commit_days.add(date)
-    print(f"Found {len(commit_days)} commit days: {commit_days}")
+            if date in commits_data:
+                commits_data[date] += 1
+            else:
+                commits_data[date] = 1
+    print(f"Found commits for dates: {list(commits_data.keys())}")
 except Exception as e:
     print(f"Error reading commits.txt: {e}")
-    commit_days = set()
 
-# 오늘 날짜 확인
-today = datetime.date.today()
-print(f"Today is {today.isoformat()}")
+# 오늘 날짜가 commits.txt에 있는지 확인
+print(f"Today ({today_str}) in commits_data: {today_str in commits_data}")
 
-# SVG 만들기
-start_date = today - datetime.timedelta(days=364)
-weeks = [[]]
-current_week = 0
+# 각 날짜에 대한 셀 생성
+for week_idx in range(52):  # 52주
+    for day_idx in range(7):  # 7일
+        date_idx = week_idx * 7 + day_idx
+        
+        if date_idx >= len(dates):
+            continue
+            
+        date = dates[date_idx]
+        x = week_idx * (CELL_SIZE + CELL_MARGIN) + 30  # x 위치 계산
+        y = day_idx * (CELL_SIZE + CELL_MARGIN) + 5    # y 위치 계산
+        
+        # 커밋이 있으면 핑크색, 없으면 회색
+        color = COLOR_COMMIT if date in commits_data else COLOR_EMPTY
+        
+        # 오늘 날짜인 경우 특별히 표시
+        if date == today_str:
+            print(f"Marking today's cell ({date}) with color: {color}")
+            stroke = 'stroke="#000" stroke-width="2"'
+        else:
+            stroke = ''
+            
+        svg_cells += f'    <rect x="{x}" y="{y}" width="{CELL_SIZE}" height="{CELL_SIZE}" rx="2" ry="2" fill="{color}" class="cell" data-date="{date}" {stroke}/>\n'
 
-for i in range(365):
-    day = start_date + datetime.timedelta(days=i)
-    date_str = day.isoformat()
-    
-    # 디버깅: 오늘 날짜가 커밋 날짜 목록에 있는지 확인
-    if date_str == today.isoformat():
-        print(f"Today ({date_str}) is in commit_days: {date_str in commit_days}")
-    
-    color = COLOR_COMMIT if date_str in commit_days else COLOR_EMPTY
-    
-    # 주의 첫 번째 날짜인 경우 새로운 주 시작
-    if day.weekday() == 0 and i > 0:
-        weeks.append([])
-        current_week += 1
-    
-    rect = f'<rect x="{current_week*13}" y="{day.weekday()*13}" width="10" height="10" fill="{color}" rx="2" ry="2"/>'
-    weeks[-1].append(rect)
+svg_end = """  </g>
+</svg>"""
 
-rects = "\n".join(["\n".join(week) for week in weeks])
+full_svg = svg_start + svg_cells + svg_end
 
-# SVG 조립
-svg_width = (len(weeks))*13 + 2  # 약간의 마진 추가
-svg = f'''<svg width="{svg_width}" height="100" xmlns="http://www.w3.org/2000/svg">
-{rects}
-</svg>'''
-
+# SVG 파일 저장
 with open('commit-calendar.svg', 'w') as f:
-    f.write(svg)
-
+    f.write(full_svg)
 print("SVG calendar created successfully")
+
+# README 파일 업데이트
+readme_content = ""
+readme_marker_start = "<!-- COMMIT-CALENDAR-START -->"
+readme_marker_end = "<!-- COMMIT-CALENDAR-END -->"
+
+calendar_content = f"{readme_marker_start}\n## Commit Calendar\n\n![Commit Calendar](./commit-calendar.svg)\n\nLast updated: {today_str}\n{readme_marker_end}"
+
+# README.md 파일이 있는지 확인
+if os.path.exists(README_PATH):
+    with open(README_PATH, 'r', encoding='utf-8') as f:
+        readme_content = f.read()
+    
+    # 마커가 있는지 확인
+    if readme_marker_start in readme_content and readme_marker_end in readme_content:
+        # 마커 사이의 내용 교체
+        pattern = f"{readme_marker_start}.*?{readme_marker_end}"
+        readme_content = re.sub(pattern, calendar_content, readme_content, flags=re.DOTALL)
+    else:
+        # 마커가 없으면 README 끝에 추가
+        readme_content += f"\n\n{calendar_content}"
+else:
+    # README가 없으면 새로 생성
+    readme_content = f"# TIL\n\n{calendar_content}"
+
+# 수정된 README 저장
+with open(README_PATH, 'w', encoding='utf-8') as f:
+    f.write(readme_content)
+print("README.md updated successfully")
